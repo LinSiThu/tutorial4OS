@@ -6,151 +6,134 @@
 #include "players.h"
 #include "jeopardy.h"
 
-// Tokenizes the user's input answer
-void tokenize(char *input, char **tokens)
-{
-    input[strcspn(input, "\n")] = 0; // Remove newline
+// Function prototypes
+void display_categories_with_unanswered(void);
+void show_results(player *players, int num_players);
 
-    // Skip "what is" or "who is" and extract the actual answer
-    if (strncmp(input, "what is ", 8) == 0) {
-        tokens[2] = input + 8;
-    } else if (strncmp(input, "who is ", 7) == 0) {
-        tokens[2] = input + 7;
-    } else {
-        tokens[2] = input; // Default to entire input if format is wrong
-    }
-}
-
-// Displays the game results for each player, ranked by score
-void show_results(player *players, int num_players)
-{
-    // Simple sorting to rank players by score
-    for (int i = 0; i < num_players - 1; i++) {
-        for (int j = 0; j < num_players - i - 1; j++) {
-            if (players[j].score < players[j + 1].score) {
-                player temp = players[j];
-                players[j] = players[j + 1];
-                players[j + 1] = temp;
-            }
-        }
-    }
-
-    printf("\nFinal Scores:\n");
-    for (int i = 0; i < num_players; i++) {
-        printf("%d. %s - $%d\n", i + 1, players[i].name, players[i].score);
-    }
-}
-
-
-// Main game loop
-int main()
-{
+int main() {
     player players[NUM_PLAYERS];
-    char buffer[BUFFER_LEN] = { 0 };
+    char buffer[MAX_LEN];
     char category[MAX_LEN];
     int value;
     char answer[MAX_LEN];
+    char choice[MAX_LEN];
+    bool game_active = true;
 
-    initialize_game(); // Initialize questions
+    initialize_game();
 
     // Prompt for player names
     for (int i = 0; i < NUM_PLAYERS; i++) {
         printf("Enter player %d name: ", i + 1);
         fgets(players[i].name, MAX_LEN, stdin);
-        players[i].name[strcspn(players[i].name, "\n")] = 0; // Remove newline
+        players[i].name[strcspn(players[i].name, "\n")] = 0;  // Remove newline character
         players[i].score = 0;
     }
 
     // Start game loop
-    while (true) {
-        display_categories();
+    while (game_active) {
+        display_categories_with_unanswered();
 
-        // Ask for player's name until valid
-        while (true) {
-            printf("\nEnter the player's name who is selecting: ");
-            fgets(buffer, BUFFER_LEN, stdin);
-            buffer[strcspn(buffer, "\n")] = 0; // Remove newline
+        printf("\nEnter the player's name who is selecting or type 'end game' to finish: ");
+        fgets(buffer, MAX_LEN, stdin);
+        buffer[strcspn(buffer, "\n")] = 0;  
 
-            if (player_exists(players, NUM_PLAYERS, buffer)) {
-                break; // Valid player name
-            } else {
-                printf("Player not found. Try again.\n");
-            }
+        if (strcasecmp(buffer, "end game") == 0) {
+            game_active = false;
+            continue;
         }
 
-        // Ask for category until valid
-        while (true) {
-            printf("Enter category: ");
-            fgets(category, MAX_LEN, stdin);
-            category[strcspn(category, "\n")] = 0;
-
-            bool valid_category = false;
-            for (int i = 0; i < NUM_CATEGORIES; i++) {
-                if (strcasecmp(category, categories[i]) == 0) {
-                    valid_category = true;
-                    break;
-                }
-            }
-
-            if (valid_category) {
-                break; // Valid category
-            } else {
-                printf("Invalid category. Please choose from the displayed categories.\n");
-            }
-        }
-
-        // Ask for question value until valid
-        while (true) {
-            printf("Enter question value ($100 or $200): ");
-            if (scanf("%d", &value) != 1) {
-                printf("Invalid input. Please enter a numerical value.\n");
-                while (getchar() != '\n'); // Clear input buffer
-                continue;
-            }
-            getchar(); // Consume newline
-
-            if (value == 100 || value == 200) {
-                break; // Valid value
-            } else {
-                printf("Invalid value. Choose either $100 or $200.\n");
-            }
-        }
-
-        display_question(category, value);
-
-        // Ask for answer
-        printf("Enter answer (format: 'what is X' or 'who is X'): ");
-        fgets(answer, MAX_LEN, stdin);
-        answer[strcspn(answer, "\n")] = 0; // Remove newline
-
-        char *tokens[3] = { NULL };
-        tokenize(answer, tokens);
-
-        // Validate the answer
-        if (valid_answer(category, value, tokens[2])) {
-            update_score(players, NUM_PLAYERS, buffer, value);
-            printf("Correct!\n");
-        } else {
-            for (int i = 0; i < NUM_QUESTIONS; i++) {
-                if (strcasecmp(questions[i].category, category) == 0 && questions[i].value == value) {
-                    printf("Incorrect. The correct answer was: %s\n", questions[i].answer);
-                    break;
-                }
-            }
-        }
-
-        // Check if all questions are answered
-        bool all_answered = true;
-        for (int i = 0; i < NUM_QUESTIONS; i++) {
-            if (!questions[i].answered) {
-                all_answered = false;
+        while (!player_exists(players, NUM_PLAYERS, buffer)) {
+            printf("Player does not exist. Please enter a valid player's name or 'end game' to finish: ");
+            fgets(buffer, MAX_LEN, stdin);
+            buffer[strcspn(buffer, "\n")] = 0;  
+            if (strcasecmp(buffer, "end game") == 0) {
+                game_active = false;
                 break;
             }
         }
-        if (all_answered) break;
+
+        if (!game_active) {
+            continue;
+        }
+
+        printf("Enter category: ");
+        fgets(category, MAX_LEN, stdin);
+        category[strcspn(category, "\n")] = 0;  // Remove newline
+
+        while (!valid_category(category)) {
+            printf("Invalid category. Please enter a valid category: ");
+            fgets(category, MAX_LEN, stdin);
+            category[strcspn(category, "\n")] = 0;  
+        }
+
+        printf("Enter question value ($100 or $200): ");
+        scanf("%d", &value);
+        while (getchar() != '\n'); // Clear the input buffer
+
+        if (already_answered(category, value)) {
+            printf("This question has already been answered. Please choose another one.\n");
+            continue;
+        }
+
+        display_question(category, value);
+        printf("Enter answer (format: 'what is X' or 'who is X'): ");
+        fgets(answer, MAX_LEN, stdin);
+        answer[strcspn(answer, "\n")] = 0;  
+
+        if (valid_answer(category, value, answer)) {
+            update_score(players, NUM_PLAYERS, buffer, value);
+            printf("Correct!\n");
+        } else {
+            int idx = find_question_index(category, value);
+            printf("Incorrect. The correct answer was: %s\n", questions[idx].answer);
+        }
     }
 
     show_results(players, NUM_PLAYERS);
+    printf("\nGame Over! All questions have been answered or the game was ended manually.\nWould you like to 'restart' or 'quit'? ");
+    fgets(choice, MAX_LEN, stdin);
+    choice[strcspn(choice, "\n")] = 0; 
+
+    if (strcasecmp(choice, "restart") == 0) {
+        main(); // Restart the game by recalling main
+    }
+
     return EXIT_SUCCESS;
 }
 
+void display_categories_with_unanswered() {
+    printf("\nAvailable Categories and their unanswered questions' values:\n");
+    for (int i = 0; i < NUM_CATEGORIES; i++) {
+        printf("%s: ", categories[i]);
+        bool found = false;
+        for (int j = 0; j < NUM_QUESTIONS; j++) {
+            if (strcmp(questions[j].category, categories[i]) == 0 && !questions[j].answered) {
+                printf("$%d ", questions[j].value);
+                found = true;
+            }
+        }
+        if (!found) {
+            printf("No unanswered questions");
+        }
+        printf("\n");
+    }
+}
+
+void show_results(player *players, int num_players) {
+    // Sort the players by score in descending order
+    for (int i = 0; i < num_players; i++) {
+        for (int j = i + 1; j < num_players; j++) {
+            if (players[i].score < players[j].score) {
+                player temp = players[i];
+                players[i] = players[j];
+                players[j] = temp;
+            }
+        }
+    }
+
+    // Display the sorted list of players and their scores
+    printf("\nFinal results:\n");
+    for (int i = 0; i < num_players; i++) {
+        printf("%s: %d\n", players[i].name, players[i].score);
+    }
+}

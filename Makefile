@@ -1,21 +1,23 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
+LDFLAGS =
 OBJ = jeopardy.o questions.o players.o
-EXEC = jeopardy.exe
+TARGET = jeopardy.exe
 
-all: $(EXEC)
+# Link the program
+$(TARGET): $(OBJ)
+	$(CC) $(LDFLAGS) -o $@ $^
 
-$(EXEC): $(OBJ)
-	$(CC) $(CFLAGS) -o $(EXEC) $(OBJ)
-
-jeopardy.o: jeopardy.c jeopardy.h questions.h players.h
-	$(CC) $(CFLAGS) -c jeopardy.c
+# Compile the source files into object files
+jeopardy.o: jeopardy.c jeopardy.h players.h questions.h
+	$(CC) $(CFLAGS) -c $<
 
 questions.o: questions.c questions.h
-	$(CC) $(CFLAGS) -c questions.c
+	$(CC) $(CFLAGS) -c $<
 
 players.o: players.c players.h
-	$(CC) $(CFLAGS) -c players.c
+	$(CC) $(CFLAGS) -c $<
 
+# Clean the build directory
 clean:
-	del /F /Q $(EXEC) $(OBJ) 2>nul || exit 0
+	cmd /c del /F /Q $(TARGET) $(OBJ)
